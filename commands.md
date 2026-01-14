@@ -1,1 +1,4 @@
-nohup bash -lc "source /opt/conda/etc/profile.d/conda.sh && conda activate inspyrenet && python run/Test.py -c configs/InSPyReNet_SwinB.yaml && python run/Eval.py -c configs/InSPyReNet_SwinB.yaml && python run/Test.py -c configs/InSPyReNet_Res2Net50.yaml && python run/Eval.py -c configs/InSPyReNet_Res2Net50.yaml" > results/inspyrenet_all.log 2>&1 &
+python run/Test.py -c configs/InSPyReNet_SwinB.yaml && \
+python run/Eval.py -c configs/InSPyReNet_SwinB.yaml && \
+python run/Test.py -c configs/InSPyReNet_Res2Net50.yaml && \
+python run/Eval.py -c configs/InSPyReNet_Res2Net50.yaml
