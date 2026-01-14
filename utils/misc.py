@@ -1,16 +1,20 @@
 import re
 import os
+import json
 import yaml
 import cv2
 import argparse
 import warnings
 import numpy as np
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from easydict import EasyDict as ed
+
+_CONFIG_PATH = Path(__file__).resolve().parents[1] / "CONSTANT.json"
 
 class Simplify(nn.Module):
     def __init__(self, model):
@@ -64,7 +68,71 @@ def load_config(config_dir, easy=True):
     cfg = yaml.load(open(config_dir), yaml.FullLoader)
     if easy is True:
         cfg = ed(cfg)
+    _apply_constant_data_root(cfg)
     return cfg
+
+def _apply_constant_data_root(cfg):
+    data_root = _load_constant_data_root()
+    if data_root is None:
+        return
+
+    repo_root = Path(__file__).resolve().parents[1]
+
+    if hasattr(cfg, "Train") and hasattr(cfg.Train, "Dataset"):
+        cfg.Train.Dataset.root = _resolve_root(cfg.Train.Dataset.root, data_root, repo_root)
+    if hasattr(cfg, "Test") and hasattr(cfg.Test, "Dataset"):
+        cfg.Test.Dataset.root = _resolve_root(cfg.Test.Dataset.root, data_root, repo_root)
+    if hasattr(cfg, "Eval"):
+        cfg.Eval.gt_root = _resolve_root(getattr(cfg.Eval, "gt_root", None), data_root, repo_root)
+
+def _load_constant_data_root():
+    if not _CONFIG_PATH.exists():
+        return None
+
+    config = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    raw_path = config.get("data_path")
+    if not raw_path:
+        return None
+    return _normalise_path(raw_path)
+
+def _resolve_root(root, data_root, repo_root):
+    if root is None:
+        return root
+
+    root_path = Path(root)
+    if root_path.is_absolute():
+        if root_path.exists():
+            return str(root_path)
+    else:
+        repo_candidate = (repo_root / root_path).resolve()
+        if repo_candidate.exists():
+            return str(repo_candidate)
+
+    if data_root is not None:
+        data_root = Path(data_root)
+        data_candidate = (data_root / root_path)
+        if data_candidate.exists():
+            return str(data_candidate)
+        if data_root.exists():
+            return str(data_root)
+
+    return root
+
+def _normalise_path(raw_path):
+    normalised = raw_path.replace("\\", "/")
+    candidate = Path(normalised)
+    if candidate.exists():
+        return candidate
+
+    if len(normalised) > 2 and normalised[1:3] == ":/":
+        drive_letter = normalised[0].lower()
+        remainder = normalised[3:]
+        wsl_candidate = Path("/mnt") / drive_letter / remainder
+        if wsl_candidate.exists():
+            return wsl_candidate
+        return wsl_candidate
+
+    return candidate
 
 def to_cuda(sample):
     for key in sample.keys():
