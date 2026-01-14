@@ -4,13 +4,66 @@
 # @GitHub  : https://github.com/lartpang/PySODMetrics
 
 import numpy as np
-from scipy.ndimage import convolve
+from scipy.ndimage import convolve, binary_erosion
 from scipy.ndimage import distance_transform_edt as bwdist
 import cv2
 from PIL import Image
 
 _EPS = 1e-16
 _TYPE = np.float64
+
+
+def _prepare_binary(pred: np.ndarray, gt: np.ndarray) -> tuple:
+    pred, gt = _prepare_data(pred, gt)
+    pred = pred >= 0.5
+    return pred, gt
+
+
+def calculate_binary_iou(pred: np.ndarray, gt: np.ndarray) -> float:
+    pred, gt = _prepare_binary(pred, gt)
+    intersection = np.logical_and(pred, gt).sum()
+    union = np.logical_or(pred, gt).sum()
+    if union == 0:
+        return 1.0 if intersection == 0 else 0.0
+    return float(intersection / union)
+
+
+def calculate_dice(pred: np.ndarray, gt: np.ndarray) -> float:
+    pred, gt = _prepare_binary(pred, gt)
+    intersection = np.logical_and(pred, gt).sum()
+    total = pred.sum() + gt.sum()
+    if total == 0:
+        return 1.0
+    return float(2 * intersection / total)
+
+
+def _surface_distances(pred: np.ndarray, gt: np.ndarray) -> np.ndarray:
+    pred = np.asarray(pred, dtype=bool)
+    gt = np.asarray(gt, dtype=bool)
+    if pred.shape != gt.shape:
+        raise ValueError("pred and gt must have the same shape for HD95.")
+    if pred.sum() == 0 and gt.sum() == 0:
+        return np.array([0.0], dtype=float)
+    if pred.sum() == 0 or gt.sum() == 0:
+        return np.array([np.inf], dtype=float)
+
+    pred_surf = np.logical_xor(pred, binary_erosion(pred))
+    gt_surf = np.logical_xor(gt, binary_erosion(gt))
+
+    dt_pred = bwdist(~pred_surf)
+    dt_gt = bwdist(~gt_surf)
+
+    dist_gt_to_pred = dt_pred[gt_surf]
+    dist_pred_to_gt = dt_gt[pred_surf]
+    return np.concatenate([dist_gt_to_pred, dist_pred_to_gt]).astype(float)
+
+
+def calculate_hd95(pred: np.ndarray, gt: np.ndarray, percentile: float = 95.0) -> float:
+    pred, gt = _prepare_binary(pred, gt)
+    distances = _surface_distances(pred, gt)
+    if np.isinf(distances).any():
+        return float("inf")
+    return float(np.percentile(distances, percentile))
 
 
 def _prepare_data(pred: np.ndarray, gt: np.ndarray) -> tuple:

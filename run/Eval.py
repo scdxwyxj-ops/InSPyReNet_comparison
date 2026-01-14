@@ -54,6 +54,9 @@ def evaluate(opt, args):
         IOU = IoU()
         BIOU = BIoU()
         TIOU = TIoU()
+        iou_list = []
+        dice_list = []
+        hd95_list = []
 
         if args.verbose is True:
             samples = tqdm.tqdm(enumerate(zip(preds, gts)), desc=dataset + ' - Evaluation', total=len(
@@ -85,6 +88,9 @@ def evaluate(opt, args):
             IOU.step(pred=pred_mask, gt=gt_mask)
             BIOU.step(pred=pred_mask, gt=gt_mask)
             TIOU.step(pred=pred_mask, gt=gt_mask)
+            iou_list.append(calculate_binary_iou(pred_mask, gt_mask))
+            dice_list.append(calculate_dice(pred_mask, gt_mask))
+            hd95_list.append(calculate_hd95(pred_mask, gt_mask))
             
         result = []
 
@@ -112,6 +118,9 @@ def evaluate(opt, args):
         maxBIou = BIou["curve"].max()
         avgTIou = TIou["curve"].mean()
         maxTIou = TIou["curve"].max()
+        iou = float(np.mean(iou_list)) if iou_list else 0.0
+        dice = float(np.mean(dice_list)) if dice_list else 0.0
+        hd95 = float(np.mean(hd95_list)) if hd95_list else float("inf")
         
         out = dict()
         for metric in opt.Eval.metrics:
