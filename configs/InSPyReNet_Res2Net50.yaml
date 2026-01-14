@@ -52,8 +52,8 @@ Train:
 Test:
     Dataset:
         type: "RGB_Dataset"
-        root: "data/Test_Dataset"
-        sets: ['DUTS-TE', 'DUT-OMRON', 'ECSSD', 'HKU-IS', 'PASCAL-S',  'DAVIS-S', 'HRSOD', 'UHRSD-TE']
+        root: "/app/SAM2_proj/WBC/GrTh"
+        sets: ['dataset_v0', 'cropped']
         transforms:
             static_resize: 
                 size: [384, 384]
@@ -69,8 +69,8 @@ Test:
         checkpoint_dir: "snapshots/InSPyReNet_Res2Net50"
 
 Eval:
-    gt_root: "data/Test_Dataset"
+    gt_root: "/app/SAM2_proj/WBC/GrTh"
     pred_root: "snapshots/InSPyReNet_Res2Net50"
     result_path: "results"
-    datasets: ['DUTS-TE', 'DUT-OMRON', 'ECSSD', 'HKU-IS', 'PASCAL-S',  'DAVIS-S', 'HRSOD', 'UHRSD-TE']
+    datasets: ['dataset_v0', 'cropped']
     metrics: ['iou', 'dice', 'hd95']
